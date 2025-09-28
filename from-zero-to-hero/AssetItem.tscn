@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3 uid="uid://wfqt8t1a3wo"]
+
+[ext_resource type="Script" uid="uid://vw3gnikw3267" path="res://asset_item.gd" id="1_4n0bd"]
+
+[node name="HBoxContainer" type="HBoxContainer"]
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_4n0bd")
+
+[node name="NameLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Сбор бутылок"
+
+[node name="LevelLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Ур.0"
+
+[node name="CostLabel" type="Label" parent="."]
+layout_mode = 2
+text = "$10.00"
+
+[node name="BuyButton" type="Button" parent="."]
+layout_mode = 2
+text = "Купить"
+
+[connection signal="pressed" from="BuyButton" to="." method="_on_BuyButton_pressed"]

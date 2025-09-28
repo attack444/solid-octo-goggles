@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3 uid="uid://bcefkmyvih1y0"]
+
+[ext_resource type="Script" uid="uid://wl7b3ljcdnvc" path="res://shop.gd" id="1_c53l5"]
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_c53l5")
+
+[node name="AssetContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="CloseButton" type="Button" parent="AssetContainer"]
+layout_mode = 2
+text = "Закрыть"
+
+[connection signal="pressed" from="AssetContainer/CloseButton" to="." method="_on_CloseButton_pressed"]

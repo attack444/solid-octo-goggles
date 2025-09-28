@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://bmpsnhk0qnbhq"]
+
+[ext_resource type="Script" uid="uid://c87xyulh2v8o7" path="res://main.gd" id="1_ghw17"]
+[ext_resource type="PackedScene" uid="uid://bda1v0gey6xih" path="res://HUD.tscn" id="2_m372o"]
+
+[node name="Main_tscn" type="Node2D"]
+script = ExtResource("1_ghw17")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="ClickerButton" type="TextureButton" parent="."]
+offset_left = 11.0
+offset_top = 592.0
+offset_right = 51.0
+offset_bottom = 632.0
+
+[node name="CanvasLayer2" parent="." instance=ExtResource("2_m372o")]
+
+[node name="ShopButton" type="Button" parent="."]
+offset_left = 1060.0
+offset_top = 10.0
+offset_right = 1139.0
+offset_bottom = 41.0
+text = "Магазин"
+
+[node name="IncomeTimer" type="Timer" parent="."]
+autostart = true
+
+[connection signal="pressed" from="ClickerButton" to="ClickerButton" method="_on_ClickerButton_pressed"]
+[connection signal="pressed" from="ShopButton" to="ClickerButton" method="_on_ShopButton_pressed"]
