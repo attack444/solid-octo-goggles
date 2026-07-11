@@ -6,11 +6,14 @@ const ASSET_ITEM_SCENE = preload("res://AssetItem.tscn")
 @onready var close_button = $CloseButton 
 
 func _ready():
-	# Слушаем глобальный сигнал
-	Global.game_state_changed.connect(Callable(self, "generate_asset_list"))
+	# Подключаем сигнал через нормальную функцию-обёртку
+	Global.game_state_changed.connect(_on_global_state_changed)
 	
 	close_button.pressed.connect(queue_free)
 	
+	generate_asset_list()
+
+func _on_global_state_changed():
 	generate_asset_list()
 
 func generate_asset_list():
@@ -24,4 +27,7 @@ func generate_asset_list():
 		asset_list.add_child(asset_item)
 		
 		# Инициализируем элемент, передавая ключ актива
-		asset_item.initialize(key)
+		if asset_item.has_method("initialize"):
+			asset_item.initialize(key)
+		else:
+			push_error("Ошибка: у AssetItem нет функции initialize(key)!")
