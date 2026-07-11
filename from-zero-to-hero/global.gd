@@ -1,9 +1,7 @@
 extends Node
 
 # --- ГЛОБАЛЬНЫЕ СИГНАЛЫ ---
-# Общий сигнал, вызывается при любой покупке, апгрейде или престиже.
-signal game_state_changed 
-# Сигнал для открытия окна выбора при случайном событии.
+signal game_state_changed
 signal random_event_triggered(event_data)
 
 # --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
@@ -17,14 +15,27 @@ var total_money_earned: float = 0.0
 
 # --- ДАННЫЕ АКТИВОВ, ПРОГРЕССА И ИНВЕНТАРЯ ---
 var assets_data: Dictionary = {
-	# Включен 'base_upgrade_cost' для корректного сброса при престиже
 	"bottle_collecting": { 
-		"name": "Сбор бутылок", "level": 0, "base_cost": 10.0, "current_cost": 10.0, 
-		"base_income": 0.1, "upgrade_level": 0, "base_upgrade_cost": 100.0, "upgrade_cost": 100.0
+		"name": "Сбор бутылок", 
+		"level": 0, 
+		"base_cost": 10.0, 
+		"current_cost": 10.0, 
+		"base_income": 0.1, 
+		"original_base_income": 0.1, # <-- Добавил для корректного сброса
+		"upgrade_level": 0, 
+		"base_upgrade_cost": 100.0, 
+		"upgrade_cost": 100.0
 	},
 	"car_wash": { 
-		"name": "Мойка машин", "level": 0, "base_cost": 50.0, "current_cost": 50.0, 
-		"base_income": 0.5, "upgrade_level": 0, "base_upgrade_cost": 500.0, "upgrade_cost": 500.0
+		"name": "Мойка машин", 
+		"level": 0, 
+		"base_cost": 50.0, 
+		"current_cost": 50.0, 
+		"base_income": 0.5, 
+		"original_base_income": 0.5, # <-- Добавил для корректного сброса
+		"upgrade_level": 0, 
+		"base_upgrade_cost": 500.0, 
+		"upgrade_cost": 500.0
 	}
 }
 
@@ -49,22 +60,23 @@ var inventory: Dictionary = { "key_to_city": 1, "lucky_coin": 3 }
 
 const SAVE_PATH := "user://savegame.cfg"
 
+func _ready():
+	randomize() # <-- Исправление: чтобы события были случайными
+	load_game() # <-- Автозагрузка прогресса при старте
+
 # --- ФУНКЦИИ ЛОГИКИ ---
 
 func update_passive_income():
 	var total_income = 0.0
 	for key in assets_data.keys():
 		var data = assets_data[key]
-		# Доход = (Уровень * Базовый доход)
 		total_income += data.level * data.base_income
 	passive_income_per_sec = total_income
 
 func get_income() -> float:
 	var base = passive_income_per_sec
-	# Штрафы
 	if health < 30: base *= 0.5 
 	if happiness < 30: base *= 0.7
-	# Бонус Престижа
 	var prestige_bonus_multiplier = 1.0 + (float(prestige_points) * 0.01)
 	return base * prestige_bonus_multiplier
 	
@@ -81,14 +93,12 @@ func buy_asset(key: String) -> bool:
 	return false
 
 func upgrade_asset(key: String) -> bool:
-	# Эта функция не была полностью разработана, но должна быть похожа на buy_asset
-	# Здесь должна быть логика изменения base_income и увеличения upgrade_cost
 	var data = assets_data.get(key)
 	if data and money >= data.upgrade_cost:
 		money -= data.upgrade_cost
 		data.upgrade_level += 1
-		data.upgrade_cost *= 2.0 # Пример удорожания
-		data.base_income *= 1.1 # Пример увеличения дохода
+		data.upgrade_cost *= 2.0
+		data.base_income *= 1.1
 		
 		update_passive_income()
 		emit_signal("game_state_changed")
@@ -96,7 +106,11 @@ func upgrade_asset(key: String) -> bool:
 	return false
 
 func try_upgrade_progress(branch: String) -> bool:
-	var branch_data = progress_data[branch]
+	var branch_data = progress_data.get(branch)
+	if not branch_data:
+		push_error("Неизвестный прогресс-ветка: " + branch)
+		return false
+		
 	var next_level = branch_data.level + 1
 	if next_level <= branch_data.max:
 		var cost = branch_data.unlock_costs[next_level]
@@ -128,15 +142,14 @@ func prestige() -> bool:
 			data.current_cost = data.base_cost
 			data.upgrade_level = 0
 			data.upgrade_cost = data.base_upgrade_cost 
-			# Восстановление base_income к оригиналу (нужна отдельная переменная или жесткое кодирование)
-			# Для простоты, здесь нужно восстановить base_income до его стартового значения.
+			data.base_income = data.original_base_income # <-- Критически важное исправление
 			
 		for key in progress_data.keys():
 			progress_data[key].level = 0
 			
 		inventory.clear()
 		entertainment_cooldowns.clear()
-			
+		
 		update_passive_income()
 		save_game()
 		emit_signal("game_state_changed") 
@@ -145,6 +158,8 @@ func prestige() -> bool:
 	return false
 
 func trigger_random_event():
+	if events_db.size() == 0:
+		return
 	var event = events_db[randi() % events_db.size()]
 	emit_signal("random_event_triggered", event) 
 
@@ -152,8 +167,51 @@ func add_item_to_inventory(key: String, count: int = 1):
 	inventory[key] = inventory.get(key, 0) + count
 	emit_signal("game_state_changed") 
 
-# --- ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ (Используют ConfigFile) ---
+# --- ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ ---
 
 func save_game():
 	var config = ConfigFile.new()
-	config.
+	config.load(SAVE_PATH)
+	
+	config["global"] = {
+		"money": money,
+		"passive_income_per_sec": passive_income_per_sec,
+		"health": health,
+		"happiness": happiness,
+		"prestige_points": prestige_points,
+		"total_money_earned": total_money_earned,
+		"last_save_time": last_save_time,
+	}
+	
+	config["assets"] = assets_data
+	config["progress"] = progress_data
+	config["inventory"] = inventory
+	config["entertainment_cooldowns"] = entertainment_cooldowns
+	
+	var error = config.save(SAVE_PATH)
+	if error != OK:
+		push_error("Ошибка сохранения игры: " + str(error))
+
+func load_game() -> bool:
+	var config = ConfigFile.new()
+	var err = config.load(SAVE_PATH)
+	if err != OK:
+		return false # Сохранения нет, начинаем новую игру
+	
+	var global_data = config["global"]
+	money = global_data["money"]
+	passive_income_per_sec = global_data["passive_income_per_sec"]
+	health = global_data["health"]
+	happiness = global_data["happiness"]
+	prestige_points = global_data["prestige_points"]
+	total_money_earned = global_data["total_money_earned"]
+	last_save_time = global_data["last_save_time"]
+	
+	assets_data = config["assets"]
+	progress_data = config["progress"]
+	inventory = config["inventory"]
+	entertainment_cooldowns = config["entertainment_cooldowns"]
+	
+	update_passive_income()
+	emit_signal("game_state_changed")
+	return true
