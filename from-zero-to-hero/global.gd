@@ -21,7 +21,7 @@ var assets_data: Dictionary = {
 		"base_cost": 10.0, 
 		"current_cost": 10.0, 
 		"base_income": 0.1, 
-		"original_base_income": 0.1, # <-- Добавил для корректного сброса
+		"original_base_income": 0.1,
 		"upgrade_level": 0, 
 		"base_upgrade_cost": 100.0, 
 		"upgrade_cost": 100.0
@@ -32,7 +32,7 @@ var assets_data: Dictionary = {
 		"base_cost": 50.0, 
 		"current_cost": 50.0, 
 		"base_income": 0.5, 
-		"original_base_income": 0.5, # <-- Добавил для корректного сброса
+		"original_base_income": 0.5,
 		"upgrade_level": 0, 
 		"base_upgrade_cost": 500.0, 
 		"upgrade_cost": 500.0
@@ -61,8 +61,8 @@ var inventory: Dictionary = { "key_to_city": 1, "lucky_coin": 3 }
 const SAVE_PATH := "user://savegame.cfg"
 
 func _ready():
-	randomize() # <-- Исправление: чтобы события были случайными
-	load_game() # <-- Автозагрузка прогресса при старте
+	randomize()
+	load_game()
 
 # --- ФУНКЦИИ ЛОГИКИ ---
 
@@ -142,7 +142,9 @@ func prestige() -> bool:
 			data.current_cost = data.base_cost
 			data.upgrade_level = 0
 			data.upgrade_cost = data.base_upgrade_cost 
-			data.base_income = data.original_base_income # <-- Критически важное исправление
+			# Безопасное восстановление дохода
+			var base_income_to_restore = data.get("original_base_income", data.base_income)
+			data.base_income = base_income_to_restore
 			
 		for key in progress_data.keys():
 			progress_data[key].level = 0
@@ -161,6 +163,12 @@ func trigger_random_event():
 	if events_db.size() == 0:
 		return
 	var event = events_db[randi() % events_db.size()]
+	
+	# Валидация события перед отправкой в UI
+	if not (event.has("text") and event.has("choice") and event.has("stat_change") and event.has("effect")):
+		push_warning("Некорректное событие в базе: " + str(event))
+		return
+	
 	emit_signal("random_event_triggered", event) 
 
 func add_item_to_inventory(key: String, count: int = 1):
@@ -196,21 +204,22 @@ func load_game() -> bool:
 	var config = ConfigFile.new()
 	var err = config.load(SAVE_PATH)
 	if err != OK:
-		return false # Сохранения нет, начинаем новую игру
+		return false
 	
 	var global_data = config["global"]
-	money = global_data["money"]
-	passive_income_per_sec = global_data["passive_income_per_sec"]
-	health = global_data["health"]
-	happiness = global_data["happiness"]
-	prestige_points = global_data["prestige_points"]
-	total_money_earned = global_data["total_money_earned"]
-	last_save_time = global_data["last_save_time"]
+	# Безопасные get вместо прямого доступа
+	money = global_data.get("money", 0.0)
+	passive_income_per_sec = global_data.get("passive_income_per_sec", 0.0)
+	health = global_data.get("health", 100.0)
+	happiness = global_data.get("happiness", 100.0)
+	prestige_points = global_data.get("prestige_points", 0)
+	total_money_earned = global_data.get("total_money_earned", 0.0)
+	last_save_time = global_data.get("last_save_time", 0)
 	
-	assets_data = config["assets"]
-	progress_data = config["progress"]
-	inventory = config["inventory"]
-	entertainment_cooldowns = config["entertainment_cooldowns"]
+	assets_data = config.get("assets", {})
+	progress_data = config.get("progress", {})
+	inventory = config.get("inventory", {})
+	entertainment_cooldowns = config.get("entertainment_cooldowns", {})
 	
 	update_passive_income()
 	emit_signal("game_state_changed")
